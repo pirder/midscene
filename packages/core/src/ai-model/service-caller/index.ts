@@ -42,6 +42,11 @@ import {
   isHardTimeoutError,
   resolveEffectiveTimeoutMs,
 } from './request-timeout';
+import {
+  buildSiliconFlowExtraBody,
+  isSiliconFlowProvider,
+  logSiliconFlowRequest,
+} from './silicon-flow';
 
 async function createChatClient({
   modelConfig,
@@ -177,6 +182,48 @@ async function createChatClient({
     dangerouslyAllowBrowser: true,
   };
 
+  // Debug wrapper for SiliconFlow
+  const isSiliconFlow = isSiliconFlowProvider(openaiBaseURL);
+  if (isSiliconFlow && process.env.DEBUG_SILICONFLOW) {
+    const originalFetch = globalThis.fetch;
+    const debugFetch = async (
+      url: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      console.log('[SiliconFlow Debug] Request URL:', url);
+      console.log('[SiliconFlow Debug] Request headers:', init?.headers);
+      const bodyText = init?.body ? String(init.body) : '';
+      if (bodyText) {
+        try {
+          const bodyObj = JSON.parse(bodyText);
+          console.log(
+            '[SiliconFlow Debug] Request body:',
+            JSON.stringify(bodyObj, null, 2),
+          );
+        } catch {
+          console.log(
+            '[SiliconFlow Debug] Request body (raw):',
+            bodyText.substring(0, 2000),
+          );
+        }
+      }
+
+      const response = await originalFetch(url, init);
+
+      // Clone response to read body without consuming it
+      if (!response.ok && response.body) {
+        const cloned = response.clone();
+        const text = await cloned.text();
+        console.error('[SiliconFlow Debug] Error response body:', text);
+      }
+
+      return response;
+    };
+
+    // @ts-ignore
+    openAIOptions.fetch = debugFetch;
+  }
+
   const baseOpenAI = new OpenAI(openAIOptions);
 
   let openai: OpenAI = baseOpenAI;
@@ -247,6 +294,12 @@ export async function callAI(
     return callAIWithCodexAppServer(messages, modelConfig, options);
   }
 
+  // Check if using SiliconFlow provider for logging and special handling
+  const isSiliconFlow = isSiliconFlowProvider(modelConfig.openaiBaseURL);
+  if (isSiliconFlow) {
+    logSiliconFlowRequest(modelConfig.modelName, options?.stream ?? false);
+  }
+
   const {
     completion,
     modelName,
@@ -258,7 +311,10 @@ export async function callAI(
   });
   const effectiveTimeoutMs = resolveEffectiveTimeoutMs(modelConfig);
 
-  const extraBody = modelConfig.extraBody;
+  // Build extraBody with provider-specific configurations
+  const extraBody = isSiliconFlow
+    ? buildSiliconFlowExtraBody(modelConfig, modelName, options?.deepThink)
+    : modelConfig.extraBody;
 
   const maxTokens =
     globalConfigManager.getEnvConfigValueAsNumber(MIDSCENE_MODEL_MAX_TOKENS) ??
@@ -275,7 +331,12 @@ export async function callAI(
       debugCall('temperature is ignored for gpt-5');
       return undefined;
     }
-    return modelConfig.temperature ?? 0;
+    const temp = modelConfig.temperature ?? 0;
+    // SiliconFlow models don't support temperature=0, use 0.01 instead
+    if (isSiliconFlow && temp === 0) {
+      return 0.01;
+    }
+    return temp;
   })();
 
   const isStreaming = options?.stream && options?.onChunk;
@@ -394,6 +455,21 @@ export async function callAI(
     debugCall(
       `sending ${isStreaming ? 'streaming ' : ''}request to ${modelName}`,
     );
+
+    // Debug: log the full request body for SiliconFlow
+    if (isSiliconFlow) {
+      const requestBody = {
+        model: modelName,
+        messages: messagesWithImageDetail,
+        ...commonConfig,
+        ...reasoningEffortConfig,
+        ...extraBody,
+      };
+      debugCall(
+        'SiliconFlow request body:',
+        JSON.stringify(requestBody, null, 2),
+      );
+    }
 
     if (isStreaming) {
       const { signal: streamSignal, cleanup: cleanupStreamSignal } =
@@ -590,6 +666,27 @@ export async function callAI(
   } catch (e: any) {
     warnCall('call AI error', e);
 
+    // Debug: log the full error response for SiliconFlow
+    if (isSiliconFlow) {
+      console.error('[SiliconFlow Debug] Error details:', {
+        status: e?.status,
+        headers: e?.headers
+          ? Object.fromEntries(e.headers.entries())
+          : undefined,
+        error: e?.error,
+        message: e?.message,
+        code: e?.code,
+        param: e?.param,
+        type: e?.type,
+        cause: e?.cause,
+      });
+      // Try to get raw response body if available
+      const rawResponse = e?.response?.body || e?.body || e?.rawResponse;
+      if (rawResponse) {
+        console.error('[SiliconFlow Debug] Raw response body:', rawResponse);
+      }
+    }
+
     if (e instanceof AIResponseParseError) {
       throw e;
     }
@@ -773,6 +870,12 @@ export function resolveReasoningConfig({
     //   debugMessages.push('reasoning.effort="low" (from reasoningEnabled)');
     // }
     // reasoningBudget is ignored for gpt-5
+  } else if (modelFamily === 'silicon-flow') {
+    // SiliconFlow reasoning config is handled in buildSiliconFlowExtraBody
+    // Do not add any reasoning config here to avoid conflicts
+    debugMessages.push(
+      'reasoning config for silicon-flow handled in buildSiliconFlowExtraBody',
+    );
   } else if (!modelFamily) {
     return {
       config: {},

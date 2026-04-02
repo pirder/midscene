@@ -303,7 +303,8 @@ export type TModelFamily =
   | 'glm-v'
   | 'auto-glm'
   | 'auto-glm-multilingual'
-  | 'gpt-5';
+  | 'gpt-5'
+  | 'silicon-flow';
 
 export const MODEL_FAMILY_VALUES: TModelFamily[] = [
   'doubao-vision',
@@ -320,6 +321,7 @@ export const MODEL_FAMILY_VALUES: TModelFamily[] = [
   'auto-glm',
   'auto-glm-multilingual',
   'gpt-5',
+  'silicon-flow',
 ];
 
 export interface IModelConfigForInsight {
