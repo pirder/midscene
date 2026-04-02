@@ -80,8 +80,12 @@ export class IOSMidsceneTools extends BaseMidsceneTools<IOSAgent, IOSInitArgs> {
 
     debug('Creating iOS agent with WebDriverAgent options:', opts || {});
     const reportOptions = this.readCliReportAgentOptions();
+    const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+      ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+      : undefined;
     this.agent = await agentFromWebDriverAgent({
       autoDismissKeyboard: false,
+      screenshotShrinkFactor: shrinkFactor,
       ...(reportOptions ?? {}),
       ...(opts ?? {}),
     });

@@ -60,8 +60,12 @@ export class AndroidMidsceneTools extends BaseMidsceneTools<
 
     debug('Creating Android agent with deviceId:', deviceId || 'auto-detect');
     const reportOptions = this.readCliReportAgentOptions();
+    const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+      ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+      : undefined;
     const agent = await agentFromAdbDevice(deviceId, {
       autoDismissKeyboard: false,
+      screenshotShrinkFactor: shrinkFactor,
       ...(reportOptions ?? {}),
     });
     this.agent = agent;

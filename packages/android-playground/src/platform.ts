@@ -133,7 +133,12 @@ export const androidPlaygroundPlatform = definePlaygroundPlatform<
         const connectAgent = async () => {
           const device = new AndroidDevice(deviceId);
           await device.connect();
-          return new AndroidAgent(device);
+          const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+            ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+            : undefined;
+          return new AndroidAgent(device, {
+            screenshotShrinkFactor: shrinkFactor,
+          });
         };
 
         if (options?.scrcpyServer) {

@@ -16,6 +16,12 @@ export interface HarmonyPlatformOptions {
   deferConnection?: boolean;
   deviceId?: string;
   staticDir?: string;
+  /**
+   * Screenshot shrink factor to reduce AI token usage.
+   * When set, the screenshot will be scaled down by this factor from the physical resolution.
+   * @example 2 - Shrinks 3000px width to 1500px, reducing encode time by ~75%
+   */
+  screenshotShrinkFactor?: number;
 }
 
 const HARMONY_NO_DEVICE_MESSAGE =
@@ -229,7 +235,12 @@ export const harmonyPlaygroundPlatform = definePlaygroundPlatform<
       agentFactory: async () => {
         const device = new HarmonyDevice(selectedDeviceId);
         await device.connect();
-        return new HarmonyAgent(device);
+        const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+          ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+          : undefined;
+        return new HarmonyAgent(device, {
+          screenshotShrinkFactor: shrinkFactor,
+        });
       },
       launchOptions: {
         port: availablePort,

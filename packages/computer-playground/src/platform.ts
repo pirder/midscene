@@ -91,8 +91,13 @@ export const computerPlaygroundPlatform = definePlaygroundPlatform<
           input?.displayId === undefined || input.displayId === null
             ? undefined
             : String(input.displayId);
+        const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+          ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+          : undefined;
         const agent = await agentFromComputer(
-          displayId ? { displayId } : undefined,
+          displayId
+            ? { displayId, screenshotShrinkFactor: shrinkFactor }
+            : { screenshotShrinkFactor: shrinkFactor },
         );
         const displays = await getConnectedDisplays();
         const selectedDisplay =
@@ -102,10 +107,19 @@ export const computerPlaygroundPlatform = definePlaygroundPlatform<
 
         return {
           agent,
-          agentFactory: () =>
-            agentFromComputer(
-              selectedDisplay ? { displayId: selectedDisplay.id } : undefined,
-            ),
+          agentFactory: () => {
+            const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+              ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+              : undefined;
+            return agentFromComputer(
+              selectedDisplay
+                ? {
+                    displayId: selectedDisplay.id,
+                    screenshotShrinkFactor: shrinkFactor,
+                  }
+                : { screenshotShrinkFactor: shrinkFactor },
+            );
+          },
           preview: createScreenshotPreviewDescriptor({
             title: 'Desktop preview',
           }),

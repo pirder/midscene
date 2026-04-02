@@ -70,9 +70,13 @@ export class ComputerMidsceneTools extends BaseMidsceneTools<
 
     debug('Creating Computer agent with displayId:', displayId || 'primary');
     const reportOptions = this.readCliReportAgentOptions();
+    const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+      ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+      : undefined;
     const agentOpts = {
       ...(displayId ? { displayId } : {}),
       ...(headless !== undefined ? { headless } : {}),
+      screenshotShrinkFactor: shrinkFactor,
       ...(reportOptions ?? {}),
     };
     const agent = await agentFromComputer(

@@ -48,8 +48,12 @@ export class WebMidsceneTools extends BaseMidsceneTools<AgentOverChromeBridge> {
     url?: string,
   ): Promise<AgentOverChromeBridge> {
     const reportOptions = this.readCliReportAgentOptions();
+    const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+      ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+      : undefined;
     const agent = new AgentOverChromeBridge({
       closeConflictServer: true,
+      screenshotShrinkFactor: shrinkFactor,
       ...(reportOptions ?? {}),
     });
 

@@ -52,8 +52,12 @@ export class HarmonyMidsceneTools extends BaseMidsceneTools<
 
     debug('Creating Harmony agent with deviceId:', deviceId || 'auto-detect');
     const reportOptions = this.readCliReportAgentOptions();
+    const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+      ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+      : undefined;
     const agent = await agentFromHdcDevice(deviceId, {
       autoDismissKeyboard: false,
+      screenshotShrinkFactor: shrinkFactor,
       ...(reportOptions ?? {}),
     });
     this.agent = agent;

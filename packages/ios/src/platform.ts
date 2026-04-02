@@ -84,7 +84,12 @@ export const iosPlaygroundPlatform = definePlaygroundPlatform<
             wdaPort: port,
           });
           await newDevice.connect();
-          return new IOSAgent(newDevice);
+          const shrinkFactor = process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR
+            ? Number.parseFloat(process.env.MIDSCENE_SCREENSHOT_SHRINK_FACTOR)
+            : undefined;
+          return new IOSAgent(newDevice, {
+            screenshotShrinkFactor: shrinkFactor,
+          });
         };
 
         const agent = await connectAgent();
